@@ -115,14 +115,14 @@ class CUMGRL(embedder):
 #             weight[int((view_idx+1)/self.args.nb_graphs)] += 1-b_xent(logit, lbl).item()
    
 
-#         print('权重不同:', weight)
+#         
 #         tmp_sum = 0
 #         for i in range(self.args.nb_graphs):
 #             weight[i]= weight[i]
 #             tmp_sum =tmp_sum+weight[i]
 #         for i in range(self.args.nb_graphs):
 #             weight[i] = weight[i] / tmp_sum
-#         #print('权重归一化后:', weight)
+#         
 #         #tmp = model.get_emb(features, adj, self.args.sparse, None, None, None).detach()
 #         #print(tmp.shape)
 
@@ -138,7 +138,6 @@ class CUMGRL(embedder):
             weight[i]=1
         for i in range(self.args.nb_graphs):
             weight[i] = weight[i] / self.args.nb_graphs
-        print('权重相同后:', weight)
         evaluate(model.get_emb(features, adj, self.args.sparse, None, None, None, weight).detach(), self.idx_train,
                  self.idx_val, self.idx_test, self.labels, self.args.device,
                  filename=self.args.embedder + self.args.dataset)
@@ -197,18 +196,18 @@ class modeler(nn.Module):
         result['logits'] = logits
        
         for i in range(self.args.nb_graphs):
-            #h_1 = h_1_all[i]  # 正例
-            #h_2 = h_2_all[i]  # 负例
+            #h_1 = h_1_all[i]  
+            #h_2 = h_2_all[i]  
             c = c_all[i]
             for j in range(self.args.nb_graphs):
                 if(i==j):
                     continue
                 c = c_all[j]
-                h_1 = h_1_all[j]  # 正例
-                h_2 = h_2_all[j]  # 负例
+                h_1 = h_1_all[j]  #
+                h_2 = h_2_all[j]  #
                 logit = self.disc(c, h_1, h_2, samp_bias1, samp_bias2)
                 logits_consensus.append(logit)
         result['logits_consensus'] = logits_consensus
 
-        # 增加一个重构损失项。为了让一致性的能够重构出  原始的邻接矩阵
+        # 
         return result
