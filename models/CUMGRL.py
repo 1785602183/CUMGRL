@@ -26,16 +26,7 @@ class CUMGRL(embedder):
         cnt_wait = 0; best = 1e9
         b_xent = nn.BCEWithLogitsLoss()
         xent = nn.CrossEntropyLoss()
-        # import numpy as np 
-        # idx_train =self.idx_train.cpu().numpy()
-        # np.save("data_idx/{}_{}.npy".format(self.args.dataset,"idx_train"), idx_train)
-        # idx_val =self.idx_val.cpu().numpy()
-        # np.save("data_idx/{}_{}.npy".format(self.args.dataset,"idx_val"), idx_val)
-        # idx_test =self.idx_test.cpu().numpy()
-        # np.save("data_idx/{}_{}.npy".format(self.args.dataset,"idx_test"), idx_test)
-        # labels =self.labels.cpu().numpy()
-        # np.save("data_idx/{}_{}.npy".format(self.args.dataset,"labels"), labels)
-        # print('处理完成 ok')
+     
         # return
     #    xent_consensus = nn.CrossEntropyLoss()
         for epoch in range(self.args.nb_epochs):
@@ -75,10 +66,7 @@ class CUMGRL(embedder):
            
             loss =loss+self.args.reg_coef * xent_consensus_loss
 
-            if self.args.isSemi:
-                sup = result['semi']
-                semi_loss = xent(sup[self.idx_train], self.train_lbls)
-                loss += self.args.sup_coef * semi_loss
+          
 
             if loss < best:
                 best = loss
@@ -118,27 +106,27 @@ class CUMGRL(embedder):
 
 
 
-        weight = {}
-        tmp_sum = 0
-        for i in range(self.args.nb_graphs):
-            weight[i]=0
-        for view_idx, logit in enumerate(logits_consensus):
+#         weight = {}
+#         tmp_sum = 0
+#         for i in range(self.args.nb_graphs):
+#             weight[i]=0
+#         for view_idx, logit in enumerate(logits_consensus):
 
-            weight[int((view_idx+1)/self.args.nb_graphs)] += 1-b_xent(logit, lbl).item()
+#             weight[int((view_idx+1)/self.args.nb_graphs)] += 1-b_xent(logit, lbl).item()
    
 
-        print('权重不同:', weight)
-        tmp_sum = 0
-        for i in range(self.args.nb_graphs):
-            weight[i]= weight[i]
-            tmp_sum =tmp_sum+weight[i]
-        for i in range(self.args.nb_graphs):
-            weight[i] = weight[i] / tmp_sum
-        print('权重归一化后:', weight)
-        #tmp = model.get_emb(features, adj, self.args.sparse, None, None, None).detach()
-        #print(tmp.shape)
+#         print('权重不同:', weight)
+#         tmp_sum = 0
+#         for i in range(self.args.nb_graphs):
+#             weight[i]= weight[i]
+#             tmp_sum =tmp_sum+weight[i]
+#         for i in range(self.args.nb_graphs):
+#             weight[i] = weight[i] / tmp_sum
+#         #print('权重归一化后:', weight)
+#         #tmp = model.get_emb(features, adj, self.args.sparse, None, None, None).detach()
+#         #print(tmp.shape)
 
-        evaluate(model.get_emb(features, adj, self.args.sparse, None, None, None,weight).detach(), self.idx_train, self.idx_val, self.idx_test, self.labels, self.args.device,filename=self.args.embedder+self.args.dataset+'weighted_1')
+#         evaluate(model.get_emb(features, adj, self.args.sparse, None, None, None,weight).detach(), self.idx_train, self.idx_val, self.idx_test, self.labels, self.args.device,filename=self.args.embedder+self.args.dataset+'weighted_1')
 
 
 
@@ -153,15 +141,15 @@ class CUMGRL(embedder):
         print('权重相同后:', weight)
         evaluate(model.get_emb(features, adj, self.args.sparse, None, None, None, weight).detach(), self.idx_train,
                  self.idx_val, self.idx_test, self.labels, self.args.device,
-                 filename=self.args.embedder + self.args.dataset+'_shareGCN')
+                 filename=self.args.embedder + self.args.dataset)
 
 
 class modeler(nn.Module):
     def __init__(self, args):
         super(modeler, self).__init__()
         self.args = args
-        #self.gcn = nn.ModuleList([GCN(args.ft_size, args.hid_units, args.activation, args.drop_prob, args.isBias) for _ in range(args.nb_graphs)])
-        self.gcn = GCN(args.ft_size, args.hid_units, args.activation, args.drop_prob, args.isBias)
+        self.gcn = nn.ModuleList([GCN(args.ft_size, args.hid_units, args.activation, args.drop_prob, args.isBias) for _ in range(args.nb_graphs)])
+        #self.gcn = GCN(args.ft_size, args.hid_units, args.activation, args.drop_prob, args.isBias)
         self.disc = Discriminator(args.hid_units)
         
        # self.disc2 = Discriminator(args.hid_units)  # 用于一致性约束
@@ -182,9 +170,9 @@ class modeler(nn.Module):
         h=None
         for i in range(self.args.nb_graphs):
             if(h is None):
-                h = self.gcn(feature[i], adj[i], sparse)*weight[i]
+                h = self.gcn[i](feature[i], adj[i], sparse)*weight[i]
             else:
-                h = h+self.gcn(feature[i], adj[i], sparse)*weight[i]
+                h = h+self.gcn[i](feature[i], adj[i], sparse)*weight[i]
 
         return h/self.args.nb_graphs
          
@@ -195,11 +183,11 @@ class modeler(nn.Module):
         result = {}
        
         for i in range(self.args.nb_graphs):
-            h_1 = self.gcn(feature[i], adj[i], sparse)
+            h_1 = self.gcn[i](feature[i], adj[i], sparse)
             # how to readout positive summary vector
             c = self.readout_func(h_1)
             c = self.args.readout_act_func(c)  # equation 9
-            h_2 = self.gcn(shuf[i], adj[i], sparse)
+            h_2 = self.gcn[i](shuf[i], adj[i], sparse)
             logit = self.disc(c, h_1, h_2, samp_bias1, samp_bias2)
 
             h_1_all.append(h_1)
@@ -223,12 +211,4 @@ class modeler(nn.Module):
         result['logits_consensus'] = logits_consensus
 
         # 增加一个重构损失项。为了让一致性的能够重构出  原始的邻接矩阵
-
-
-        result['reg_loss'] = 0
-        
-        # semi-supervised module
-        if self.args.isSemi:
-            semi = self.logistic(self.H).squeeze(0)
-            result['semi'] = semi
         return result
