@@ -6,7 +6,10 @@ The code and experimental details of "Contrastive Unsupervised  Representation L
 * networkx version : 2.1
 # How to Run
 ```
-       
+    git clone https://github.com/1785602183/CUMGRL
+    cd CUMGRL
+    main.py --embedder CUMGRL --dataset acm --metapaths PAP,PLP --gpu_num 3
+    
 ```
 
 
